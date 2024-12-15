@@ -3,8 +3,9 @@ const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
 
+
 const app = express();
-const port = 3000;
+const port = process.env.PORT || 3000;
 
 // Middleware для обработки JSON
 app.use(bodyParser.json());
@@ -98,6 +99,6 @@ app.delete('/notes/:title', authenticate, (req, res) => {
 });
 
 // Запуск сервера
-app.listen(port, () => {
+app.listen(port,'0.0.0.0', () => {
     console.log(`API is running on http://localhost:${port}`);
 });
