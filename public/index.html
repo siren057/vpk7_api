@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Note App</title>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+        }
+        .container {
+            max-width: 500px;
+            margin: 0 auto;
+        }
+        input, button {
+            width: 100%;
+            padding: 10px;
+            margin: 10px 0;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        #qr-code {
+            margin-top: 20px;
+        }
+        .note-item {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h2>Note App</h2>
+        
+        <!-- Registration Form -->
+        <div id="register-form">
+            <h3>Register</h3>
+            <input type="email" id="register-email" placeholder="Email" required />
+            <input type="password" id="register-password" placeholder="Password" required />
+            <button onclick="registerUser()">Register</button>
+        </div>
+        
+        <!-- Login Form -->
+        <div id="login-form">
+            <h3>Login</h3>
+            <input type="email" id="login-email" placeholder="Email" required />
+            <input type="password" id="login-password" placeholder="Password" required />
+            <button onclick="loginUser()">Login</button>
+        </div>
+        
+        <hr />
+        
+        <!-- Notes Section -->
+        <div id="notes-section" style="display: none;">
+            <h3>Add a Note</h3>
+            <input type="text" id="note-title" placeholder="Title" required />
+            <textarea id="note-content" placeholder="Content" rows="4" required></textarea>
+            <button onclick="addNote()">Add Note</button>
+            
+            <h3>My Notes</h3>
+            <div id="notes-list"></div>
+            
+            <h3>Generate QR Code</h3>
+            <select id="note-selector">
+                <option value="">Select Note</option>
+            </select>
+            <button onclick="generateQRCode()">Generate QR Code</button>
+            <div id="qr-code"></div>
+        </div>
+    </div>
+
+    <script>
+        let token = ''; // Store JWT token here
+        
+        // Log messages to the console for debugging purposes
+        function logMessage(message) {
+            console.log(message);
+        }
+
+        // Register User
+        async function registerUser() {
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+
+            const response = await fetch('http://localhost:3000/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, password }),
+            });
+            const data = await response.json();
+            alert(data.message);
+            logMessage('User registered: ' + email); // Log registration attempt
+        }
+
+        // Login User
+        async function loginUser() {
+            const email = document.getElementById('login-email').value;
+            const password = document.getElementById('login-password').value;
+
+            const response = await fetch('http://localhost:3000/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ email, password }),
+            });
+            const data = await response.json();
+            if (data.success) {
+                token = data.token;
+                document.getElementById('register-form').style.display = 'none';
+                document.getElementById('login-form').style.display = 'none';
+                document.getElementById('notes-section').style.display = 'block';
+                fetchNotes();
+                logMessage('User logged in: ' + email); // Log login success
+            } else {
+                alert(data.message);
+                logMessage('Login failed: ' + email); // Log login failure
+            }
+        }
+
+        // Fetch Notes
+        async function fetchNotes() {
+            const response = await fetch('http://localhost:3000/notes', {
+                method: 'GET',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                },
+            });
+            const data = await response.json();
+            if (data.success) {
+                displayNotes(data.data);
+            }
+        }
+
+        // Display Notes
+        function displayNotes(notes) {
+            const notesList = document.getElementById('notes-list');
+            const noteSelector = document.getElementById('note-selector');
+            notesList.innerHTML = '';
+            noteSelector.innerHTML = '<option value="">Select Note</option>';
+            
+            notes.forEach(note => {
+                const noteItem = document.createElement('div');
+                noteItem.classList.add('note-item');
+                noteItem.innerHTML = `<strong>${note.title}</strong><br/>${note.content}`;
+                notesList.appendChild(noteItem);
+
+                const option = document.createElement('option');
+                option.value = note.title;
+                option.textContent = note.title;
+                noteSelector.appendChild(option);
+            });
+        }
+
+        // Add Note
+        async function addNote() {
+            const title = document.getElementById('note-title').value;
+            const content = document.getElementById('note-content').value;
+
+            const response = await fetch('http://localhost:3000/notes', {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${token}`,
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ title, content }),
+            });
+            const data = await response.json();
+            alert(data.message);
+            fetchNotes();
+            logMessage('Note added: ' + title); // Log note addition
+        }
+
+        // Generate QR Code for Selected Note
+        async function generateQRCode() {
+            const title = document.getElementById('note-selector').value;
+            if (!title) {
+                alert('Please select a note to generate QR code.');
+                return;
+            }
+
+            const data = {
+                InputData: title,
+                BgColor: 'white',  // You can change these colors
+                FgColor: 'black',
+            };
+
+            const response = await fetch('http://localhost:1337/generate-qr', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(data),
+            });
+
+            const result = await response.json();
+
+            if (result.outputData) {
+                const img = document.createElement('img');
+                img.src = 'data:image/png;base64,' + result.outputData;
+                const qrCodeContainer = document.getElementById('qr-code');
+                qrCodeContainer.innerHTML = '';  // Clear any existing QR code
+                qrCodeContainer.appendChild(img);
+                logMessage('QR Code generated for note: ' + title); // Log QR code generation
+            } else {
+                alert('Error generating QR code.');
+                logMessage('Error generating QR code for note: ' + title); // Log QR code error
+            }
+        }
+    </script>
+</body>
+</html>

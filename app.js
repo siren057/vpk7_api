@@ -2,10 +2,15 @@ const express = require('express');
 const bodyParser = require('body-parser');
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
-
+const path = require('path');
 
 const app = express();
 const port = process.env.PORT || 3000;
+
+
+app.use(express.static(path.join(__dirname, 'public')));
+
+
 
 // Middleware для обработки JSON
 app.use(bodyParser.json());
